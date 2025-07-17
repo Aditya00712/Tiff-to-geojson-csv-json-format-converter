@@ -1,0 +1,63 @@
+{
+  "layer_pattern_config": {
+    "location_patterns": {
+      "delhi": ["delhi", "mosaic", "ncr"],
+      "mumbai": ["mumbai", "mosaic", "maharashtra"],
+      "bangalore": ["bangalore", "bengaluru", "mosaic", "karnataka"],
+      "chennai": ["chennai", "madras", "mosaic", "tamilnadu"],
+      "kolkata": ["kolkata", "calcutta", "mosaic", "westbengal"],
+      "hyderabad": ["hyderabad", "mosaic", "telangana"],
+      "pune": ["pune", "mosaic", "maharashtra"],
+      "ahmedabad": ["ahmedabad", "mosaic", "gujarat"],
+      "jaipur": ["jaipur", "mosaic", "rajasthan"],
+      "lucknow": ["lucknow", "mosaic", "uttarpradesh"]
+    },
+    "terrain_patterns": {
+      "elevation": ["elevation", "dem", "dtm", "height", "mosaic", "altitude"],
+      "slope": ["slope", "gradient", "mosaic", "incline"],
+      "aspect": ["aspect", "orientation", "mosaic", "direction"],
+      "hillshade": ["hillshade", "shaded", "relief", "mosaic", "shadow"],
+      "contour": ["contour", "isoline", "mosaic", "elevation_lines"],
+      "roughness": ["roughness", "terrain", "mosaic"],
+      "curvature": ["curvature", "mosaic", "terrain"]
+    },
+    "data_type_patterns": {
+      "satellite": ["satellite", "landsat", "sentinel", "modis", "mosaic", "imagery"],
+      "aerial": ["aerial", "orthophoto", "imagery", "mosaic", "drone"],
+      "radar": ["radar", "sar", "mosaic", "synthetic"],
+      "lidar": ["lidar", "pointcloud", "mosaic", "laser"],
+      "ndvi": ["ndvi", "vegetation", "mosaic", "greenness"],
+      "landuse": ["landuse", "landcover", "mosaic", "classification"],
+      "water": ["water", "hydro", "mosaic", "rivers", "lakes"],
+      "roads": ["roads", "transportation", "mosaic", "highways"],
+      "buildings": ["buildings", "structures", "mosaic", "urban"]
+    },
+    "temporal_patterns": {
+      "2024": ["2024", "mosaic", "recent"],
+      "2023": ["2023", "mosaic"],
+      "2022": ["2022", "mosaic"],
+      "2021": ["2021", "mosaic"],
+      "2020": ["2020", "mosaic"],
+      "current": ["current", "latest", "mosaic", "recent"],
+      "historical": ["historical", "archive", "mosaic", "old"]
+    },
+    "resolution_patterns": {
+      "high": ["high", "detailed", "mosaic", "fine"],
+      "medium": ["medium", "mosaic", "standard"],
+      "low": ["low", "coarse", "mosaic", "overview"],
+      "1m": ["1m", "1meter", "mosaic"],
+      "5m": ["5m", "5meter", "mosaic"],
+      "10m": ["10m", "10meter", "mosaic"],
+      "30m": ["30m", "30meter", "mosaic"]
+    }
+  },
+  "fallback_patterns": [
+    "mosaic",
+    "composite",
+    "merged",
+    "combined",
+    "processed"
+  ],
+  "exact_match_priority": true,
+  "case_sensitive": false
+}

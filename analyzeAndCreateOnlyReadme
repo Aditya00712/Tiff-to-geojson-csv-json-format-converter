@@ -7,106 +7,6 @@ from rasterio.warp import transform
 from pyproj import Transformer
 from pathlib import Path
 
-def extract_elevation_data_with_logging(tiff_file_path, output_file_path, log_file):
-    """
-    Analyze TIFF file and return metadata without creating output files, with logging.
-    
-    Args:
-        tiff_file_path (str): Path to the input TIFF file
-        output_file_path (str): Base path for output files (not used)
-        log_file: File handle for logging
-        
-    Returns:
-        dict: Metadata about the TIFF file
-    """
-    def log_and_print(message):
-        """Helper function to both print and log messages"""
-        print(message)
-        log_file.write(message + "\n")
-        log_file.flush()
-    
-    try:
-        # Open the TIFF file
-        with rasterio.open(tiff_file_path) as dataset:
-            # Read the elevation data
-            elevation_data = dataset.read(1)  # Read the first band
-            
-            # Get dimensions
-            height, width = elevation_data.shape
-            
-            log_and_print(f"Analyzing {tiff_file_path}...")
-            log_and_print(f"Dimensions: {width} x {height}")
-            log_and_print(f"CRS: {dataset.crs}")
-            log_and_print(f"Total pixels: {height * width}")
-            log_and_print(f"NoData value: {dataset.nodata}")
-            
-            # Get elevation data statistics
-            z_values = elevation_data.flatten()
-            total_points = len(z_values)
-            
-            # Check if all elevation values are NoData/infinity
-            nodata_threshold = -1e30  # Any value smaller than this is considered NoData
-            valid_elevation_mask = z_values > nodata_threshold
-            valid_elevation_count = np.sum(valid_elevation_mask)
-            
-            log_and_print(f"Valid elevation points: {valid_elevation_count:,} / {total_points:,}")
-            log_and_print(f"Percentage valid: {(valid_elevation_count / total_points) * 100:.2f}%")
-            
-            # Calculate bounds for valid data only
-            if valid_elevation_count > 0:
-                # Get coordinates for valid points only
-                rows, cols = np.meshgrid(np.arange(height), np.arange(width), indexing='ij')
-                rows_flat = rows.flatten()[valid_elevation_mask]
-                cols_flat = cols.flatten()[valid_elevation_mask]
-                
-                # Convert to world coordinates
-                x_coords, y_coords = rasterio.transform.xy(dataset.transform, rows_flat, cols_flat)
-                
-                # Transform to WGS84
-                transformer = Transformer.from_crs(dataset.crs, 'EPSG:4326', always_xy=True)
-                lon_coords, lat_coords = transformer.transform(x_coords, y_coords)
-                
-                valid_z_values = z_values[valid_elevation_mask]
-                
-                bounds_wgs84 = {
-                    'min_longitude': float(np.min(lon_coords)),
-                    'max_longitude': float(np.max(lon_coords)),
-                    'min_latitude': float(np.min(lat_coords)),
-                    'max_latitude': float(np.max(lat_coords)),
-                    'min_elevation': float(np.min(valid_z_values)),
-                    'max_elevation': float(np.max(valid_z_values))
-                }
-            else:
-                bounds_wgs84 = None
-            
-            # Return metadata
-            metadata = {
-                'source_file': Path(tiff_file_path).name,
-                'file_path': str(tiff_file_path),
-                'dimensions': [width, height],
-                'total_pixels': total_points,
-                'valid_pixels': int(valid_elevation_count),
-                'valid_percentage': (valid_elevation_count / total_points) * 100,
-                'original_crs': str(dataset.crs),
-                'nodata_value': dataset.nodata,
-                'bounds_wgs84': bounds_wgs84,
-                'has_valid_data': valid_elevation_count > 0,
-                'data_sparsity': 'sparse' if (valid_elevation_count / total_points) < 0.1 else 'dense'
-            }
-            
-            log_and_print(f"Analysis complete: {valid_elevation_count:,} valid points")
-            return metadata
-            
-    except Exception as e:
-        error_msg = f"Error analyzing {tiff_file_path}: {str(e)}"
-        log_and_print(error_msg)
-        return {
-            'source_file': Path(tiff_file_path).name,
-            'file_path': str(tiff_file_path),
-            'error': str(e),
-            'has_valid_data': False
-        }
-
 def extract_elevation_data(tiff_file_path, output_file_path):
     """
     Analyze TIFF file and return metadata without creating output files.
@@ -213,9 +113,6 @@ def process_all_tiff_files(input_directory, output_directory):
     # Create output directory if it doesn't exist
     Path(output_directory).mkdir(exist_ok=True)
     
-    # Create log file for capturing all analysis output
-    log_file_path = Path(output_directory) / "analysis_log.txt"
-    
     # Find all TIFF files
     tiff_files = []
     for ext in ['*.tif', '*.tiff', '*.TIF', '*.TIFF', '*.tiff.tiff']:
@@ -229,55 +126,26 @@ def process_all_tiff_files(input_directory, output_directory):
         print(f"No TIFF files found in {input_directory}")
         return []
     
-    log_message = f"Found {len(tiff_files)} TIFF files"
-    print(log_message)
+    print(f"Found {len(tiff_files)} TIFF files")
     
-    # Write to log file
-    with open(log_file_path, 'w') as log_file:
-        log_file.write("TIFF FILE ANALYSIS LOG\n")
-        log_file.write("=" * 70 + "\n")
-        log_file.write(f"Analysis started: {pd.Timestamp.now()}\n")
-        log_file.write(f"Input directory: {Path(input_directory).absolute()}\n")
-        log_file.write(f"{log_message}\n\n")
-        
-        all_metadata = []
-        total_valid_points = 0
-        
-        for i, tiff_file in enumerate(tiff_files, 1):
-            log_file.write(f"=== FILE {i}/{len(tiff_files)} ===\n")
-            log_file.flush()  # Ensure immediate write
-            
-            # Analyze the TIFF file and capture output
-            metadata = extract_elevation_data_with_logging(str(tiff_file), "", log_file)
-            all_metadata.append(metadata)
-            
-            if metadata.get('has_valid_data', False):
-                total_valid_points += metadata.get('valid_pixels', 0)
-            
-            completion_msg = f"Completed: {tiff_file.name}"
-            separator = "-" * 50
-            print(completion_msg)
-            print(separator)
-            
-            log_file.write(f"{completion_msg}\n")
-            log_file.write(f"{separator}\n\n")
-            log_file.flush()  # Ensure immediate write
-        
-        # Write summary to log
-        summary_msg1 = f"\nAnalysis complete!"
-        summary_msg2 = f"Total VALID data points across all files: {total_valid_points:,}"
-        summary_msg3 = f"Files with valid data: {sum(1 for m in all_metadata if m.get('has_valid_data', False))}/{len(all_metadata)}"
-        
-        print(summary_msg1)
-        print(summary_msg2)
-        print(summary_msg3)
-        
-        log_file.write(f"{summary_msg1}\n")
-        log_file.write(f"{summary_msg2}\n")
-        log_file.write(f"{summary_msg3}\n")
-        log_file.write(f"\nLog completed: {pd.Timestamp.now()}\n")
+    all_metadata = []
+    total_valid_points = 0
     
-    print(f"Analysis log saved to: {log_file_path}")
+    for tiff_file in tiff_files:
+        # Analyze the TIFF file
+        metadata = extract_elevation_data(str(tiff_file), "")
+        all_metadata.append(metadata)
+        
+        if metadata.get('has_valid_data', False):
+            total_valid_points += metadata.get('valid_pixels', 0)
+        
+        print(f"Completed: {tiff_file.name}")
+        print("-" * 50)
+    
+    print(f"\nAnalysis complete!")
+    print(f"Total VALID data points across all files: {total_valid_points:,}")
+    print(f"Files with valid data: {sum(1 for m in all_metadata if m.get('has_valid_data', False))}/{len(all_metadata)}")
+    
     return all_metadata
 
 def analyze_tiff_file(tiff_file_path):
